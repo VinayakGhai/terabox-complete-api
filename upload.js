@@ -373,14 +373,24 @@ async function main() {
 
   if (rawArgs.length === 0 || rawArgs[0] === '--help' || rawArgs[0] === '-h') {
     console.log(`
-\x1b[36m--- TeraBox CLI Uploader (Cloudflare Worker Token Proxy) ---\x1b[0m
-Usage:
-  store <file-path> [remote-folder]     Upload a single file (instant background detachment)
-  store --sync <file-path>              Upload a single file in foreground terminal
-  store_log                             View upload history log
-  store_dir <folder> [remote-folder]    Upload all files in a directory
-  store_check                           Check credentials health & Cloudflare Worker token proxy status
-  store_clear                           Clear upload history log
+\x1b[36m=================================================================================\x1b[0m
+\x1b[1m\x1b[34m          Terabox Complete API & CLI Uploader — VinayakGhai (Indie Dev)          \x1b[0m
+\x1b[36m=================================================================================\x1b[0m
+
+\x1b[33m💡 Tip: Type "store -h" anytime for full command reference & terminal navigation!\x1b[0m
+
+\x1b[1mCORE COMMANDS:\x1b[0m
+  \x1b[32mstore <file-path> [remote-folder]\x1b[0m    Upload file instantly (Background Detached <3ms)
+  \x1b[32mstore --sync <file-path>\x1b[0m             Upload file in foreground with progress bar
+  \x1b[32mstore_dir <folder> [remote-folder]\x1b[0m   Upload entire directory recursively
+  \x1b[32mstore_check\x1b[0m                          Check Cloudflare Worker proxy & session health
+  \x1b[32mstore_log\x1b[0m                            View interactive upload history log
+  \x1b[32mstore_clear\x1b[0m                          Clear local history log entries
+
+\x1b[1mDOCUMENTATION & MANUAL:\x1b[0m
+  \x1b[35mLEARN IT PDF Guide:\x1b[0m Open LEARN_IT.pdf for full setup, EULA, and architecture docs.
+
+\x1b[36m=================================================================================\x1b[0m
     `);
     return;
   }
