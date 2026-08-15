@@ -196,7 +196,7 @@ function clearHistory() {
     if (fs.existsSync(TASKS_FILE)) {
       fs.unlinkSync(TASKS_FILE);
     }
-    console.log('\x1b[32m✓ TeraBox upload history log and active tracking cache cleared.\x1b[0m');
+    console.log('\x1b[32m✓ TeraBox upload history log and active tracking cache cleared successfully!\x1b[0m');
   } catch (e) {
     console.error('Failed to clear history:', e.message);
   }
@@ -593,19 +593,27 @@ function displayHelpMenu() {
 \x1b[1m\x1b[34m          Terabox Complete API & CLI Uploader — VinayakGhai (Indie Dev)          \x1b[0m
 \x1b[36m=================================================================================\x1b[0m
 
-\x1b[33m💡 Tip: Use "storetera" or "stt" short alias anytime from terminal!\x1b[0m
+\x1b[33m💡 Tip: Use "storetera" or "stt" short alias anytime from your terminal!\x1b[0m
 
 \x1b[1mREVAMPED CLI COMMAND SYNTAX:\x1b[0m
-  \x1b[32mstt upload <file> [remote-folder]\x1b[0m      Upload file instantly (Background Detached <3ms)
+  \x1b[32mstt upload <file> [remote-folder]\x1b[0m      Upload file (Instant Background Detached <3ms)
   \x1b[32mstt upload --sync <file>\x1b[0m               Upload file in foreground with progress bar
   \x1b[32mstt dir <folder> [remote-folder]\x1b[0m       Upload entire directory recursively
   \x1b[32mstt track\x1b[0m                              Track active background uploads & percent progress
-  \x1b[32mstt delete <remote-path>\x1b[0m               Delete remote file or directory on cloud
+  \x1b[32mstt delete <remote-path>\x1b[0m               Delete remote file or directory on TeraBox cloud
   \x1b[32mstt list [folder]\x1b[0m                      List all remote files in TeraBox storage
-  \x1b[32mstt check\x1b[0m                              Check Cloudflare Worker proxy & session health
+  \x1b[32mstt check\x1b[0m                              Check Worker proxy & account session health
   \x1b[32mstt log\x1b[0m                                View upload history log
-  \x1b[32mstt clear\x1b[0m                              Clear local history log entries
-  \x1b[32mstt help\x1b[0m                               Display this help & navigation menu
+  \x1b[32mstt clear\x1b[0m                              Clear upload history log & tracking cache
+  \x1b[32mstt help\x1b[0m                               Display this interactive help menu
+
+\x1b[1mEXAMPLE USAGE COMMANDS:\x1b[0m
+  \x1b[36mstt my_file.zip\x1b[0m                        Instant background upload to root '/'
+  \x1b[36mstt upload my_file.zip /backups\x1b[0m         Upload to remote folder '/backups'
+  \x1b[36mstt dir my_photos /photos\x1b[0m               Batch upload directory to '/photos'
+  \x1b[36mstt track\x1b[0m                              View live color progress bars
+  \x1b[36mstt delete /backups/old_file.zip\x1b[0m        Purge remote file from cloud
+  \x1b[36mstt log clear\x1b[0m                           Clear all upload history logs
 
 \x1b[1mDOCUMENTATION & MANUAL:\x1b[0m
   \x1b[35mLEARN IT PDF Guide:\x1b[0m Open LEARN_IT.pdf for full setup, EULA, and architecture docs.
@@ -621,7 +629,7 @@ async function main() {
     rawArgs = rawArgs.slice(1);
   }
 
-  if (rawArgs.length === 0 || rawArgs[0] === 'help' || rawArgs[0] === '--help' || rawArgs[0] === '-h') {
+  if (rawArgs.length === 0) {
     displayHelpMenu();
     return;
   }
@@ -631,34 +639,61 @@ async function main() {
   const args = rawArgs.filter(a => a !== '--async-worker' && a !== '--sync');
 
   const firstArg = args[0];
+  const secondArg = args[1];
 
-  if (firstArg === 'track' || firstArg === '--track' || firstArg === 'status') {
-    displayActiveTracks();
+  // Handle help requests explicitly
+  if (firstArg === 'help' || firstArg === '--help' || firstArg === '-h') {
+    displayHelpMenu();
     return;
   }
 
-  if (firstArg === 'log' || firstArg === '--log' || firstArg === '--history') {
-    displayHistory();
-    return;
-  }
-
-  if (firstArg === 'clear' || firstArg === '--clear-log') {
+  // Handle 'stt log clear' or 'stt clear'
+  if (firstArg === 'clear' || firstArg === '--clear-log' || (firstArg === 'log' && (secondArg === 'clear' || secondArg === '--clear'))) {
     clearHistory();
     return;
   }
 
+  // Handle 'stt log help' or 'stt log'
+  if (firstArg === 'log' || firstArg === '--log' || firstArg === '--history' || firstArg === 'history') {
+    if (secondArg === 'help' || secondArg === '--help' || secondArg === '-h') {
+      displayHelpMenu();
+      return;
+    }
+    displayHistory();
+    return;
+  }
+
+  // Handle 'stt track' or 'stt status'
+  if (firstArg === 'track' || firstArg === '--track' || firstArg === 'status') {
+    if (secondArg === 'clear') {
+      clearHistory();
+      return;
+    }
+    displayActiveTracks();
+    return;
+  }
+
+  // Handle 'stt check'
   if (firstArg === 'check' || firstArg === '--check') {
     await checkCredentials();
     return;
   }
 
-  if (firstArg === 'list' || firstArg === '--list') {
-    await listRemoteFiles(args[1] || '/');
+  // Handle 'stt list' or 'stt ls'
+  if (firstArg === 'list' || firstArg === 'ls' || firstArg === '--list') {
+    await listRemoteFiles(secondArg || '/');
     return;
   }
 
+  // Handle 'stt delete' or 'stt rm'
   if (firstArg === 'delete' || firstArg === 'rm' || firstArg === '--delete') {
-    await deleteRemoteFiles(args.slice(1));
+    const targets = args.slice(1);
+    if (targets.length === 0) {
+      console.log('\x1b[31m✕ Please specify a remote file or folder path to delete. Example: "stt delete /file.txt"\x1b[0m');
+      displayHelpMenu();
+      return;
+    }
+    await deleteRemoteFiles(targets);
     return;
   }
 
@@ -679,6 +714,7 @@ async function main() {
   }
 
   if (!uploadPath) {
+    console.log(`\x1b[31m✕ Unrecognized command or missing parameters: "${rawArgs.join(' ')}"\x1b[0m`);
     displayHelpMenu();
     return;
   }
