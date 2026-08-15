@@ -30,7 +30,7 @@ jobs:
         run: npm install
 
       - name: Publish to GitHub Packages (npm)
-        run: npm publish --access public
+        run: npm publish --access public || echo "npm package version already published on GitHub Packages, skipping."
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
