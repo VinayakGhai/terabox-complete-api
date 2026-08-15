@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL--2.0-blue.svg" alt="GPLv2 License"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License"/></a>
   <img src="https://img.shields.io/badge/Node.js-v18%2B-green.svg" alt="Node.js Version"/>
   <img src="https://img.shields.io/badge/Cloudflare_Worker-Server--Side_Token-orange.svg" alt="Cloudflare Worker"/>
   <img src="https://img.shields.io/badge/Playwright-Removed-red.svg" alt="No Playwright"/>
@@ -144,4 +144,4 @@ This project synthesizes ideas and technical patterns from the following open-so
 
 ## License
 
-This project is licensed under the **GNU General Public License v2.0 (GPL-2.0)**. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
