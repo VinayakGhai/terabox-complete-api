@@ -27,7 +27,7 @@ jobs:
           scope: '@vinayakghai'
 
       - name: Install Dependencies
-        run: npm ci
+        run: npm install
 
       - name: Publish to GitHub Packages (npm)
         run: npm publish --access public
@@ -47,18 +47,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:1.0.0
-          labels: ${{ steps.meta.outputs.labels }}
+            ghcr.io/vinayakghai/terabox-complete-api:latest
+            ghcr.io/vinayakghai/terabox-complete-api:1.0.0
