@@ -115,25 +115,25 @@ loginctl enable-linger $USER
 
 ---
 
-## CLI Shell Commands Reference
+## Revamped CLI Command Reference (`storetera` / `stt`)
 
 Add these aliases to your `~/.bashrc` or `~/.zshrc`:
 
 ```bash
-alias store="node /path/to/terabox-complete-api/upload.js"
-alias store_dir="node /path/to/terabox-complete-api/upload.js --dir"
-alias store_log="node /path/to/terabox-complete-api/upload.js --log"
-alias store_check="node /path/to/terabox-complete-api/upload.js --check"
-alias store_clear="node /path/to/terabox-complete-api/upload.js --clear-log"
+alias storetera="node /path/to/terabox-complete-api/upload.js"
+alias stt="node /path/to/terabox-complete-api/upload.js"
 ```
 
-| Command | Usage | Description |
-|---|---|---|
-| `store` | `store <file-path> [remote-folder]` | Upload a single file to TeraBox |
-| `store_dir` | `store_dir <folder> [remote-folder]` | Upload all files in a directory |
-| `store_check` | `store_check` | Verify Worker proxy health and session credentials |
-| `store_log` | `store_log` | View formatted upload history log |
-| `store_clear` | `store_clear` | Clear local upload history log |
+| Revamped Command | Short Alias | Description | Execution Mode |
+|---|---|---|---|
+| `storetera upload <file>` | `stt upload <file> [folder]` | Upload a single file to TeraBox | Instant Background (<3ms) |
+| `storetera upload --sync` | `stt upload --sync <file>` | Upload file in foreground terminal | Foreground Terminal |
+| `storetera dir <folder>` | `stt dir <folder> [folder]` | Upload entire directory recursively | Instant Background |
+| `storetera list [folder]` | `stt list [folder]` | List all remote files in TeraBox storage | Cloud File Manager |
+| `storetera check` | `stt check` | Verify Worker proxy & session health | Health Check |
+| `storetera log` | `stt log` | View formatted upload history log | History Viewer |
+| `storetera clear` | `stt clear` | Clear local upload history log | Log Manager |
+| `storetera help` | `stt help` | Display interactive terminal help menu | Help Navigation |
 
 ---
 

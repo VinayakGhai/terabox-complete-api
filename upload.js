@@ -61,7 +61,7 @@ function appendHistory(entry) {
 
 function displayHistory() {
   if (!fs.existsSync(HISTORY_FILE)) {
-    console.log('\x1b[33mNo upload history found yet. Upload a file using "store <file>"!\x1b[0m');
+    console.log('\x1b[33mNo upload history found yet. Upload a file using "storetera upload <file>" or "stt <file>"!\x1b[0m');
     return;
   }
   try {
@@ -240,6 +240,45 @@ async function checkCredentials() {
   }
 }
 
+async function listRemoteFiles(remoteFolder = '/') {
+  const creds = await resolveServerSideCredentials();
+  if (!creds) return;
+
+  try {
+    const uploader = new TeraboxUploader({
+      ndus: creds.ndus,
+      jsToken: creds.jsToken,
+      appId: creds.appId,
+    });
+
+    const res = await uploader.fetchFileList(remoteFolder);
+    if (res && res.success && res.data && res.data.list) {
+      console.log(`\n\x1b[36m====================== TeraBox Remote Cloud Files (${remoteFolder}) ======================\x1b[0m\n`);
+      console.log(
+        '\x1b[1m' +
+        'File Name'.padEnd(35) +
+        'Size'.padEnd(14) +
+        'Type'.padEnd(12) +
+        'Remote Path' +
+        '\x1b[0m'
+      );
+      console.log('-'.repeat(85));
+      res.data.list.forEach(item => {
+        const name = (item.server_filename || '').length > 32 ? item.server_filename.slice(0, 29) + '...' : (item.server_filename || '');
+        const size = formatFileSize(item.size || 0).padEnd(14);
+        const type = item.isdir === 1 ? '\x1b[33mFolder\x1b[0m'.padEnd(21) : '\x1b[32mFile\x1b[0m'.padEnd(21);
+        const pathStr = item.path || '';
+        console.log(`${name.padEnd(35)}${size}${type}${pathStr}`);
+      });
+      console.log('\n\x1b[36m========================================================================================\x1b[0m\n');
+    } else {
+      console.log('\x1b[33mNo files found or empty directory.\x1b[0m');
+    }
+  } catch (e) {
+    console.error(`\x1b[31m✕ Failed to fetch file list: ${e.message}\x1b[0m`);
+  }
+}
+
 async function uploadSingleFile(filePath, remoteFolder = '/') {
   const resolvedPath = path.resolve(filePath);
   if (!fs.existsSync(resolvedPath)) {
@@ -250,7 +289,7 @@ async function uploadSingleFile(filePath, remoteFolder = '/') {
 
   const stats = fs.statSync(resolvedPath);
   if (stats.isDirectory()) {
-    console.error(`\x1b[31mError: Path "${resolvedPath}" is a directory. Use "store_dir <folder>" to upload directories.\x1b[0m`);
+    console.error(`\x1b[31mError: Path "${resolvedPath}" is a directory. Use "storetera dir <folder>" or "stt dir <folder>" to upload directories.\x1b[0m`);
     return false;
   }
 
@@ -368,30 +407,40 @@ async function uploadDirectory(dirPath, remoteFolder = '/') {
   sendDesktopNotification('TeraBox Batch Upload Complete', `✓ Uploaded ${successCount}/${files.length} files to TeraBox:${remoteFolder}`, true);
 }
 
-async function main() {
-  const rawArgs = process.argv.slice(2);
-
-  if (rawArgs.length === 0 || rawArgs[0] === '--help' || rawArgs[0] === '-h') {
-    console.log(`
+function displayHelpMenu() {
+  console.log(`
 \x1b[36m=================================================================================\x1b[0m
 \x1b[1m\x1b[34m          Terabox Complete API & CLI Uploader — VinayakGhai (Indie Dev)          \x1b[0m
 \x1b[36m=================================================================================\x1b[0m
 
-\x1b[33m💡 Tip: Type "store -h" anytime for full command reference & terminal navigation!\x1b[0m
+\x1b[33m💡 Tip: Use "storetera" or "stt" short alias anytime from terminal!\x1b[0m
 
-\x1b[1mCORE COMMANDS:\x1b[0m
-  \x1b[32mstore <file-path> [remote-folder]\x1b[0m    Upload file instantly (Background Detached <3ms)
-  \x1b[32mstore --sync <file-path>\x1b[0m             Upload file in foreground with progress bar
-  \x1b[32mstore_dir <folder> [remote-folder]\x1b[0m   Upload entire directory recursively
-  \x1b[32mstore_check\x1b[0m                          Check Cloudflare Worker proxy & session health
-  \x1b[32mstore_log\x1b[0m                            View interactive upload history log
-  \x1b[32mstore_clear\x1b[0m                          Clear local history log entries
+\x1b[1mREVAMPED CLI COMMAND SYNTAX:\x1b[0m
+  \x1b[32mstt upload <file> [remote-folder]\x1b[0m      Upload file instantly (Background Detached <3ms)
+  \x1b[32mstt upload --sync <file>\x1b[0m               Upload file in foreground with progress bar
+  \x1b[32mstt dir <folder> [remote-folder]\x1b[0m       Upload entire directory recursively
+  \x1b[32mstt list [folder]\x1b[0m                      List all remote files in TeraBox storage
+  \x1b[32mstt check\x1b[0m                              Check Cloudflare Worker proxy & session health
+  \x1b[32mstt log\x1b[0m                                View upload history log
+  \x1b[32mstt clear\x1b[0m                              Clear local history log entries
+  \x1b[32mstt help\x1b[0m                               Display this help & navigation menu
 
 \x1b[1mDOCUMENTATION & MANUAL:\x1b[0m
   \x1b[35mLEARN IT PDF Guide:\x1b[0m Open LEARN_IT.pdf for full setup, EULA, and architecture docs.
 
 \x1b[36m=================================================================================\x1b[0m
-    `);
+  `);
+}
+
+async function main() {
+  let rawArgs = process.argv.slice(2);
+
+  if (rawArgs.length > 0 && (rawArgs[0] === 'stt' || rawArgs[0] === 'storetera')) {
+    rawArgs = rawArgs.slice(1);
+  }
+
+  if (rawArgs.length === 0 || rawArgs[0] === 'help' || rawArgs[0] === '--help' || rawArgs[0] === '-h') {
+    displayHelpMenu();
     return;
   }
 
@@ -401,24 +450,50 @@ async function main() {
 
   const firstArg = args[0];
 
-  if (firstArg === '--history' || firstArg === '--log') {
+  if (firstArg === 'log' || firstArg === '--log' || firstArg === '--history') {
     displayHistory();
     return;
   }
 
-  if (firstArg === '--clear-log') {
+  if (firstArg === 'clear' || firstArg === '--clear-log') {
     clearHistory();
     return;
   }
 
-  if (firstArg === '--check') {
+  if (firstArg === 'check' || firstArg === '--check') {
     await checkCredentials();
     return;
   }
 
+  if (firstArg === 'list' || firstArg === '--list') {
+    await listRemoteFiles(args[1] || '/');
+    return;
+  }
+
+  let uploadPath = null;
+  let remoteFolder = '/';
+  let isDirectoryUpload = false;
+
+  if (firstArg === 'upload') {
+    uploadPath = args[1];
+    remoteFolder = args[2] || '/';
+  } else if (firstArg === 'dir' || firstArg === '--dir') {
+    isDirectoryUpload = true;
+    uploadPath = args[1];
+    remoteFolder = args[2] || '/';
+  } else if (firstArg && !firstArg.startsWith('-')) {
+    uploadPath = firstArg;
+    remoteFolder = args[1] || '/';
+  }
+
+  if (!uploadPath) {
+    displayHelpMenu();
+    return;
+  }
+
   // Instant background detachment for upload operations
-  if (!isSync && !isAsyncWorker && (firstArg === '--dir' || (firstArg && !firstArg.startsWith('-')))) {
-    const targetName = firstArg === '--dir' ? path.basename(args[1] || '') : path.basename(firstArg);
+  if (!isSync && !isAsyncWorker) {
+    const targetName = path.basename(uploadPath);
     const child = spawn(process.execPath, [__filename, '--async-worker', ...rawArgs], {
       detached: true,
       stdio: 'ignore',
@@ -431,21 +506,12 @@ async function main() {
     process.exit(0);
   }
 
-  if (firstArg === '--dir') {
-    const dirPath = args[1];
-    const remoteFolder = args[2] || '/';
-    if (!dirPath) {
-      console.error('\x1b[31mError: Please specify a directory path.\x1b[0m');
-      process.exit(1);
-    }
-    await uploadDirectory(dirPath, remoteFolder);
-    return;
+  if (isDirectoryUpload) {
+    await uploadDirectory(uploadPath, remoteFolder);
+  } else {
+    const success = await uploadSingleFile(uploadPath, remoteFolder);
+    if (!success) process.exit(1);
   }
-
-  const filePath = args[0];
-  const remoteFolder = args[1] || '/';
-  const success = await uploadSingleFile(filePath, remoteFolder);
-  if (!success) process.exit(1);
 }
 
 main();

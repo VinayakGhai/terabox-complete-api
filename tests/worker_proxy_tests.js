@@ -51,7 +51,7 @@ const TESTS = [
       const bashrc = fs.readFileSync(path.join(rootDir, '.bashrc'), 'utf8');
       const zshrc = fs.readFileSync(path.join(rootDir, '.zshrc'), 'utf8');
 
-      ['store', 'store_dir', 'store_log', 'store_check', 'store_clear', 'store_refresh'].forEach(cmd => {
+      ['storetera', 'stt', 'store', 'store_dir', 'store_log', 'store_check', 'store_clear'].forEach(cmd => {
         assert(bashrc.includes(`${cmd}()`), `.bashrc must define ${cmd}`);
         assert(zshrc.includes(`${cmd}()`), `.zshrc must define ${cmd}`);
       });
@@ -108,7 +108,7 @@ const TESTS = [
       const tmpFile = path.join(os.tmpdir(), `test_wpt09_${Date.now()}.txt`);
       fs.writeFileSync(tmpFile, 'WPT-09 test upload payload content\n');
 
-      const res = spawnSync(process.execPath, [path.join(rootDir, 'upload.js'), tmpFile, '/'], {
+      const res = spawnSync(process.execPath, [path.join(rootDir, 'upload.js'), '--sync', tmpFile, '/'], {
         encoding: 'utf8',
         timeout: 15000,
         cwd: rootDir
@@ -129,7 +129,7 @@ const TESTS = [
       fs.writeFileSync(path.join(tmpDir, 'file1.txt'), 'batch file 1 payload\n');
       fs.writeFileSync(path.join(tmpDir, 'file2.txt'), 'batch file 2 payload\n');
 
-      const res = spawnSync(process.execPath, [path.join(rootDir, 'upload.js'), '--dir', tmpDir, '/test_batch/'], {
+      const res = spawnSync(process.execPath, [path.join(rootDir, 'upload.js'), '--sync', '--dir', tmpDir, '/test_batch/'], {
         encoding: 'utf8',
         timeout: 20000,
         cwd: rootDir
