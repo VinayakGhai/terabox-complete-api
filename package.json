@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "High-performance TeraBox CLI File Uploader & Cloudflare Worker Token Proxy with zero browser popups and seamless background session self-healing.",
   "main": "upload.js",
+  "bin": {
+    "storetera": "./upload.js",
+    "stt": "./upload.js"
+  },
   "scripts": {
     "start": "node upload.js",
     "check": "node upload.js --check",

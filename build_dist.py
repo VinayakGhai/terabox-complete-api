@@ -2,6 +2,7 @@ import os
 import tarfile
 import zipfile
 import io
+import subprocess
 
 dist_dir = '/home/nayak-indie/terabox-complete-api/dist'
 os.makedirs(dist_dir, exist_ok=True)
@@ -51,7 +52,8 @@ $StoreCmd = @"
 @echo off
 node "%LocalAppData%\\TeraboxCompleteAPI\\upload.js" %*
 "@
-Set-Content -Path "$BinDir\\store.cmd" -Value $StoreCmd
+Set-Content -Path "$BinDir\\stt.cmd" -Value $StoreCmd
+Set-Content -Path "$BinDir\\storetera.cmd" -Value $StoreCmd
 
 $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($UserPath -notlike "*$BinDir*") {
@@ -66,7 +68,7 @@ if (Test-Path $PdfPath) {
 }
 
 Write-Host "=========================================================================" -ForegroundColor Cyan
-Write-Host " ✓ Installation Complete! Type 'store -h' in Command Prompt or PowerShell." -ForegroundColor Green
+Write-Host " ✓ Installation Complete! Type 'stt help' in Command Prompt or PowerShell." -ForegroundColor Green
 Write-Host "=========================================================================" -ForegroundColor Cyan
 """
 
@@ -98,6 +100,110 @@ with tarfile.open(linux_tar_path, 'w:gz') as tar:
     tar.add('/home/nayak-indie/terabox-complete-api/extract_browser_creds.py', arcname='terabox-complete-api/extract_browser_creds.py')
     tar.add('/home/nayak-indie/terabox-complete-api/LEARN_IT.pdf', arcname='terabox-complete-api/LEARN_IT.pdf')
     tar.add('/home/nayak-indie/terabox-complete-api/README.md', arcname='terabox-complete-api/README.md')
-    tar.add('/home/nayak-indie/terabox-complete-api/LICENSE', arcname='terabox-complete-api/LICENSE')
 
 print(f'✓ Linux Release Package built: {linux_tar_path} ({os.path.getsize(linux_tar_path)} bytes)')
+
+# 4. Debian/Ubuntu Package: terabox-complete-api_1.0.0_amd64.deb
+deb_build_dir = '/tmp/terabox-complete-api_deb'
+if os.path.exists(deb_build_dir):
+    subprocess.run(['rm', '-rf', deb_build_dir])
+
+os.makedirs(f'{deb_build_dir}/DEBIAN', exist_ok=True)
+os.makedirs(f'{deb_build_dir}/usr/bin', exist_ok=True)
+os.makedirs(f'{deb_build_dir}/usr/lib/terabox-complete-api', exist_ok=True)
+
+control_content = """Package: terabox-complete-api
+Version: 1.0.0
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: VinayakGhai (Indie Dev) <vinayakghai@github.com>
+Description: Terabox Complete API & CLI Uploader (stt / storetera)
+ High-performance TeraBox CLI File Uploader & Cloudflare Worker Token Proxy.
+"""
+with open(f'{deb_build_dir}/DEBIAN/control', 'w') as f:
+    f.write(control_content)
+
+subprocess.run(['cp', '/home/nayak-indie/terabox-complete-api/upload.js', f'{deb_build_dir}/usr/lib/terabox-complete-api/upload.js'])
+subprocess.run(['cp', '/home/nayak-indie/terabox-complete-api/extract_browser_creds.py', f'{deb_build_dir}/usr/lib/terabox-complete-api/extract_browser_creds.py'])
+
+stt_wrapper = """#!/bin/bash
+exec node /usr/lib/terabox-complete-api/upload.js "$@"
+"""
+with open(f'{deb_build_dir}/usr/bin/stt', 'w') as f:
+    f.write(stt_wrapper)
+with open(f'{deb_build_dir}/usr/bin/storetera', 'w') as f:
+    f.write(stt_wrapper)
+
+os.chmod(f'{deb_build_dir}/usr/bin/stt', 0o755)
+os.chmod(f'{deb_build_dir}/usr/bin/storetera', 0o755)
+
+deb_file_path = os.path.join(dist_dir, 'terabox-complete-api_1.0.0_amd64.deb')
+try:
+    subprocess.run(['dpkg-deb', '--build', deb_build_dir, deb_file_path], check=True)
+    print(f'✓ Debian/Ubuntu DEB Package built: {deb_file_path} ({os.path.getsize(deb_file_path)} bytes)')
+except Exception as e:
+    print('Debian build skipped or failed:', e)
+
+# 5. Arch Linux PKGBUILD
+pkgbuild_content = """# Maintainer: VinayakGhai (Indie Dev) <vinayakghai@github.com>
+pkgname=terabox-complete-api-bin
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Terabox Complete API & CLI Uploader (stt / storetera)"
+arch=('x86_64')
+url="https://github.com/VinayakGhai/terabox-complete-api"
+license=('MIT')
+depends=('nodejs' 'python')
+source=("https://github.com/VinayakGhai/terabox-complete-api/releases/download/v1.0.0/terabox-complete-api-v1.0.0-linux-x64.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    install -Dm755 "${srcdir}/terabox-complete-api/upload.js" "${pkgdir}/usr/lib/terabox-complete-api/upload.js"
+    install -Dm755 "${srcdir}/terabox-complete-api/extract_browser_creds.py" "${pkgdir}/usr/lib/terabox-complete-api/extract_browser_creds.py"
+    install -Dm644 "${srcdir}/terabox-complete-api/LEARN_IT.pdf" "${pkgdir}/usr/share/doc/terabox-complete-api/LEARN_IT.pdf"
+    
+    mkdir -p "${pkgdir}/usr/bin"
+    echo '#!/bin/bash' > "${pkgdir}/usr/bin/stt"
+    echo 'exec node /usr/lib/terabox-complete-api/upload.js "$@"' >> "${pkgdir}/usr/bin/stt"
+    chmod +x "${pkgdir}/usr/bin/stt"
+    
+    ln -s /usr/bin/stt "${pkgdir}/usr/bin/storetera"
+}
+"""
+pkgbuild_path = os.path.join(dist_dir, 'PKGBUILD')
+with open(pkgbuild_path, 'w') as f:
+    f.write(pkgbuild_content)
+print(f'✓ Arch Linux PKGBUILD generated: {pkgbuild_path}')
+
+# 6. Fedora / RHEL Spec File
+spec_content = """Name:           terabox-complete-api
+Version:        1.0.0
+Release:        1%{?dist}
+Summary:        Terabox Complete API & CLI Uploader (stt / storetera)
+License:        MIT
+URL:            https://github.com/VinayakGhai/terabox-complete-api
+Requires:       nodejs python3
+
+%description
+High-performance TeraBox CLI File Uploader & Cloudflare Worker Token Proxy.
+
+%install
+mkdir -p %{buildroot}/usr/lib/terabox-complete-api
+mkdir -p %{buildroot}/usr/bin
+cp upload.js %{buildroot}/usr/lib/terabox-complete-api/
+cp extract_browser_creds.py %{buildroot}/usr/lib/terabox-complete-api/
+echo '#!/bin/bash' > %{buildroot}/usr/bin/stt
+echo 'exec node /usr/lib/terabox-complete-api/upload.js "$@"' >> %{buildroot}/usr/bin/stt
+chmod +x %{buildroot}/usr/bin/stt
+ln -s /usr/bin/stt %{buildroot}/usr/bin/storetera
+
+%files
+/usr/lib/terabox-complete-api/*
+/usr/bin/stt
+/usr/bin/storetera
+"""
+spec_path = os.path.join(dist_dir, 'terabox-complete-api.spec')
+with open(spec_path, 'w') as f:
+    f.write(spec_content)
+print(f'✓ Fedora / RHEL Spec file generated: {spec_path}')

@@ -70,25 +70,50 @@ sequenceDiagram
 
 ---
 
-## Installation & Quick Start
+## Installation & Package Managers
 
-### 1. Clone the Repository
+### 📦 Linux Package Managers
+
+#### 1. Debian / Ubuntu (`apt` / `dpkg`)
+Download `.deb` package from Release v1.0.0 and install:
 ```bash
-git clone https://github.com/your-username/terabox-complete-api.git
-cd terabox-complete-api
+sudo apt install ./terabox-complete-api_1.0.0_amd64.deb
+# OR
+sudo dpkg -i terabox-complete-api_1.0.0_amd64.deb
 ```
 
-### 2. Install Dependencies
+#### 2. Arch Linux (`pacman` / `yay` / `paru`)
+Build and install via `PKGBUILD`:
 ```bash
-npm install
+yay -S terabox-complete-api-bin
+# OR manually build from PKGBUILD:
+makepkg -si
 ```
 
-### 3. Setup Environment Variables
+#### 3. Fedora / RHEL (`dnf` / `rpm`)
+Build RPM package using `.spec` file:
+```bash
+sudo dnf install nodejs python3
+rpmbuild -ba terabox-complete-api.spec
+```
+
+#### 4. Node Package Manager (`npm`)
+Install globally via `npm`:
+```bash
+npm install -g @vinayakghai/terabox-complete-api
+```
+
+### 🪟 Windows Setup Installer
+Download and run **`terabox-complete-api-setup-v1.0.0.exe`** from [Releases](https://github.com/VinayakGhai/terabox-complete-api/releases/tag/v1.0.0). It automatically sets up PATH variables and opens the **LEARN IT** documentation manual.
+
+---
+
+### Setup Environment Variables
 Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
-Edit `.env` and set your `TERABOX_NDUS` cookie value:
+Set your `TERABOX_NDUS` session cookie in `.env`:
 ```env
 TERABOX_NDUS=your_ndus_cookie_here
 TERABOX_WORKER_URL=http://localhost:8787
