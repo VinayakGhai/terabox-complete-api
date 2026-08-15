@@ -8,33 +8,13 @@ const TeraboxUploader = require('terabox-upload-tool');
 const currentEnvPath = process.env.ENV_PATH || (fs.existsSync(path.join(__dirname, '.env')) ? path.join(__dirname, '.env') : path.join(os.homedir(), '.env'));
 require('dotenv').config({ path: currentEnvPath, override: true });
 
-// Browser headers to ensure compatibility with TeraBox Cloudflare/WAF endpoints
+// Browser headers to ensure compatibility with TeraBox endpoints
 axios.defaults.headers.common['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
 axios.defaults.headers.common['Accept'] = 'application/json, text/plain, */*';
 axios.defaults.headers.common['Accept-Language'] = 'en-US,en;q=0.9';
 axios.defaults.headers.common['Accept-Encoding'] = 'gzip, deflate, br';
-axios.defaults.headers.common['Referer'] = 'https://www.terabox.com/main';
+axios.defaults.headers.common['Referer'] = 'https://www.1024terabox.com/main';
 axios.defaults.headers.common['Connection'] = 'keep-alive';
-
-// Intercept axios requests to route through Cloudflare Worker Token Proxy if configured
-const proxyUrl = process.env.TERABOX_WORKER_URL || process.env.TERABOX_BASE_URL;
-if (proxyUrl && !proxyUrl.includes('localhost') && !proxyUrl.includes('127.0.0.1')) {
-  const baseUrl = proxyUrl.replace(/\/+$/, '');
-  axios.interceptors.request.use((config) => {
-    if (config.url && (config.url.startsWith('http://') || config.url.startsWith('https://'))) {
-      try {
-        const parsed = new URL(config.url);
-        if (parsed.hostname.includes('terabox.com')) {
-          config.url = `${baseUrl}${parsed.pathname}${parsed.search}`;
-          if (process.env.TERABOX_NDUS) {
-            config.headers['x-terabox-ndus'] = process.env.TERABOX_NDUS.trim();
-          }
-        }
-      } catch (_) {}
-    }
-    return config;
-  });
-}
 
 const HISTORY_FILE = path.join(os.homedir(), '.terabox_history.json');
 
@@ -202,38 +182,22 @@ async function resolveServerSideCredentials(isRetry = false) {
     return null;
   }
 
-  // 1. Try Cloudflare Worker token proxy if remote worker URL
-  if (workerUrl && !workerUrl.includes('localhost') && !workerUrl.includes('127.0.0.1')) {
-    try {
-      const res = await httpGetWithRetry(`${workerUrl.replace(/\/+$/, '')}/token`, {
-        headers: { 'x-terabox-ndus': ndus },
-        timeout: 4000
-      }, 2);
-
-      if (res.data && res.data.success && res.data.jsToken) {
-        return {
-          ndus: ndus,
-          jsToken: res.data.jsToken.trim(),
-          appId: appId.trim(),
-          workerUrl
-        };
-      }
-    } catch (_) {}
-  }
-
-  // 2. Direct server-side resolution via TeraBox list API
+  // Direct server-side resolution via TeraBox 1024terabox.com endpoint
   try {
-    const listRes = await httpGetWithRetry('https://www.terabox.com/api/list?app_id=250528&dir=/', {
+    const mainRes = await httpGetWithRetry('https://www.1024terabox.com/main', {
       headers: {
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
         'Cookie': `lang=en; ndus=${ndus};`,
-        'Referer': 'https://www.terabox.com/main'
+        'Referer': 'https://www.1024terabox.com/main'
       },
       timeout: 10000
     }, 3);
 
-    if (listRes.data && (listRes.data.errno === 0 || listRes.data.errno === undefined)) {
-      const jsToken = listRes.data.jsToken || (listRes.data.data && listRes.data.data.jsToken) || 'SERVER_RESOLVED_JSTOKEN_OK';
+    const html = mainRes.data || '';
+    const matchJs = html.match(/fn%28%22([a-zA-Z0-9]{30,})%22%29/i) || html.match(/fn\([\"']([a-zA-Z0-9]{30,})[\"']\)/i);
+
+    if (matchJs && matchJs[1]) {
+      const jsToken = matchJs[1];
       return {
         ndus: ndus,
         jsToken: jsToken,
@@ -244,7 +208,7 @@ async function resolveServerSideCredentials(isRetry = false) {
       if (!isRetry && autoSelfHealNdusFromBrowser()) {
         return resolveServerSideCredentials(true);
       }
-      console.log(`\x1b[31m✕ TeraBox session expired (errno: ${listRes.data?.errno}).\x1b[0m`);
+      console.log(`\x1b[31m✕ TeraBox session expired or invalid ndus cookie.\x1b[0m`);
       return null;
     }
   } catch (e) {
