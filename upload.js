@@ -626,7 +626,7 @@ function displayHelpMenu() {
 async function main() {
   let rawArgs = process.argv.slice(2);
 
-  if (rawArgs.length > 0 && (rawArgs[0] === 'stt' || rawArgs[0] === 'storetera')) {
+  if (rawArgs.length > 0 && (rawArgs[0] === 'stt' || rawArgs[0] === 'storetera' || rawArgs[0] === 'teraapi-full')) {
     rawArgs = rawArgs.slice(1);
   }
 

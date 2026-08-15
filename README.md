@@ -17,6 +17,23 @@
 
 ---
 
+## 🚀 One-Line Installation (Linux Systems)
+
+To install **Terabox Complete API** on Linux systems (Arch Linux / Manjaro / EndeavourOS / Fedora / Ubuntu), simply run:
+
+```bash
+yay -S teraapi-full
+```
+
+*Or install globally via Node package manager:*
+```bash
+npm install -g @vinayakghai/terabox-complete-api
+```
+
+Once installed, use `stt`, `storetera`, or **`teraapi-full`** anywhere in your terminal!
+
+---
+
 ## ⚡ The Problem
 
 **TeraBox does not provide official personal-use API keys or developer portal access.**

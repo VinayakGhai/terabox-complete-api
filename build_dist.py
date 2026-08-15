@@ -145,12 +145,12 @@ try:
 except Exception as e:
     print('Debian build skipped or failed:', e)
 
-# 5. Arch Linux PKGBUILD
+# 5. Arch Linux PKGBUILD (yay -S teraapi-full)
 pkgbuild_content = """# Maintainer: VinayakGhai (Indie Dev) <vinayakghai@github.com>
-pkgname=terabox-complete-api-bin
+pkgname=teraapi-full
 pkgver=1.0.0
 pkgrel=1
-pkgdesc="Terabox Complete API & CLI Uploader (stt / storetera)"
+pkgdesc="Terabox Complete API & CLI Uploader (stt / storetera / teraapi-full)"
 arch=('x86_64')
 url="https://github.com/VinayakGhai/terabox-complete-api"
 license=('MIT')
@@ -164,11 +164,12 @@ package() {
     install -Dm644 "${srcdir}/terabox-complete-api/LEARN_IT.pdf" "${pkgdir}/usr/share/doc/terabox-complete-api/LEARN_IT.pdf"
     
     mkdir -p "${pkgdir}/usr/bin"
-    echo '#!/bin/bash' > "${pkgdir}/usr/bin/stt"
-    echo 'exec node /usr/lib/terabox-complete-api/upload.js "$@"' >> "${pkgdir}/usr/bin/stt"
-    chmod +x "${pkgdir}/usr/bin/stt"
+    echo '#!/bin/bash' > "${pkgdir}/usr/bin/teraapi-full"
+    echo 'exec node /usr/lib/terabox-complete-api/upload.js "$@"' >> "${pkgdir}/usr/bin/teraapi-full"
+    chmod +x "${pkgdir}/usr/bin/teraapi-full"
     
-    ln -s /usr/bin/stt "${pkgdir}/usr/bin/storetera"
+    ln -s /usr/bin/teraapi-full "${pkgdir}/usr/bin/stt"
+    ln -s /usr/bin/teraapi-full "${pkgdir}/usr/bin/storetera"
 }
 """
 pkgbuild_path = os.path.join(dist_dir, 'PKGBUILD')

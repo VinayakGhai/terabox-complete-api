@@ -69,7 +69,12 @@ elements.append(Paragraph("LEARN IT", title_style))
 elements.append(Paragraph("Terabox Complete API & CLI Uploader Manual — VinayakGhai (Indie Dev)", subtitle_style))
 elements.append(HRFlowable(width="100%", thickness=2, color=colors.HexColor('#0366d6'), spaceAfter=15))
 
-elements.append(Paragraph("1. ARCHITECTURE & ZERO-POPUP ENGINE", section_heading))
+elements.append(Paragraph("1. ONE-LINE INSTALLATION (LINUX / AUR)", section_heading))
+elements.append(Paragraph(
+    "To install Terabox Complete API on any Linux system, simply run: <b>yay -S teraapi-full</b> "
+    "or install globally via Node package manager using: <b>npm install -g @vinayakghai/terabox-complete-api</b>.",
+    body_style
+))
 elements.append(Paragraph(
     "The Terabox Complete API is engineered for ultra-fast, non-intrusive command line uploads. "
     "Unlike legacy web automation tools, it uses a Cloudflare Worker edge proxy with zero GUI windows, "
