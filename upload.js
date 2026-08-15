@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { spawnSync } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const axios = require('axios');
 const TeraboxUploader = require('terabox-upload-tool');
 
@@ -17,6 +17,13 @@ axios.defaults.headers.common['Referer'] = 'https://www.1024terabox.com/main';
 axios.defaults.headers.common['Connection'] = 'keep-alive';
 
 const HISTORY_FILE = path.join(os.homedir(), '.terabox_history.json');
+
+function sendDesktopNotification(title, message, isSuccess = true) {
+  try {
+    const icon = isSuccess ? 'checkbox-checked-symbolic' : 'dialog-error-symbolic';
+    spawnSync('notify-send', ['-t', '2000', '-i', icon, title, message]);
+  } catch (_) {}
+}
 
 function formatFileSize(bytes) {
   if (bytes === 0) return '0 B';
@@ -237,6 +244,7 @@ async function uploadSingleFile(filePath, remoteFolder = '/') {
   const resolvedPath = path.resolve(filePath);
   if (!fs.existsSync(resolvedPath)) {
     console.error(`\x1b[31mError: File not found at path "${resolvedPath}".\x1b[0m`);
+    sendDesktopNotification('TeraBox Upload Error', `File not found: ${filePath}`, false);
     return false;
   }
 
@@ -247,7 +255,10 @@ async function uploadSingleFile(filePath, remoteFolder = '/') {
   }
 
   const creds = await resolveServerSideCredentials();
-  if (!creds) return false;
+  if (!creds) {
+    sendDesktopNotification('TeraBox Upload Error', `Session credentials expired for ${path.basename(resolvedPath)}`, false);
+    return false;
+  }
 
   const fileName = path.basename(resolvedPath);
   const targetPath = remoteFolder.startsWith('/') ? remoteFolder : '/' + remoteFolder;
@@ -291,6 +302,7 @@ async function uploadSingleFile(filePath, remoteFolder = '/') {
         status: 'SUCCESS',
         error: null
       });
+      sendDesktopNotification('TeraBox Upload Complete', `✓ Uploaded ${fileName} to TeraBox:${fullRemotePath}`, true);
       return true;
     } else {
       const errorMsg = result ? (typeof result.message === 'object' ? JSON.stringify(result.message) : (result.message || JSON.stringify(result))) : 'Unknown error';
@@ -305,6 +317,7 @@ async function uploadSingleFile(filePath, remoteFolder = '/') {
         status: 'FAILED',
         error: errorMsg
       });
+      sendDesktopNotification('TeraBox Upload Failed', `✕ ${fileName}: ${errorMsg}`, false);
       return false;
     }
   } catch (err) {
@@ -320,6 +333,7 @@ async function uploadSingleFile(filePath, remoteFolder = '/') {
       status: 'FAILED',
       error: err.message
     });
+    sendDesktopNotification('TeraBox Upload Failed', `✕ ${fileName}: ${err.message}`, false);
     return false;
   }
 }
@@ -351,16 +365,18 @@ async function uploadDirectory(dirPath, remoteFolder = '/') {
   }
 
   console.log(`\x1b[32m✓ Directory upload completed: ${successCount}/${files.length} files uploaded.\x1b[0m`);
+  sendDesktopNotification('TeraBox Batch Upload Complete', `✓ Uploaded ${successCount}/${files.length} files to TeraBox:${remoteFolder}`, true);
 }
 
 async function main() {
-  const args = process.argv.slice(2);
+  const rawArgs = process.argv.slice(2);
 
-  if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
+  if (rawArgs.length === 0 || rawArgs[0] === '--help' || rawArgs[0] === '-h') {
     console.log(`
 \x1b[36m--- TeraBox CLI Uploader (Cloudflare Worker Token Proxy) ---\x1b[0m
 Usage:
-  store <file-path> [remote-folder]     Upload a single file
+  store <file-path> [remote-folder]     Upload a single file (instant background detachment)
+  store --sync <file-path>              Upload a single file in foreground terminal
   store_log                             View upload history log
   store_dir <folder> [remote-folder]    Upload all files in a directory
   store_check                           Check credentials health & Cloudflare Worker token proxy status
@@ -368,6 +384,10 @@ Usage:
     `);
     return;
   }
+
+  const isAsyncWorker = rawArgs.includes('--async-worker');
+  const isSync = rawArgs.includes('--sync');
+  const args = rawArgs.filter(a => a !== '--async-worker' && a !== '--sync');
 
   const firstArg = args[0];
 
@@ -384,6 +404,21 @@ Usage:
   if (firstArg === '--check') {
     await checkCredentials();
     return;
+  }
+
+  // Instant background detachment for upload operations
+  if (!isSync && !isAsyncWorker && (firstArg === '--dir' || (firstArg && !firstArg.startsWith('-')))) {
+    const targetName = firstArg === '--dir' ? path.basename(args[1] || '') : path.basename(firstArg);
+    const child = spawn(process.execPath, [__filename, '--async-worker', ...rawArgs], {
+      detached: true,
+      stdio: 'ignore',
+      env: process.env,
+      cwd: process.cwd()
+    });
+    child.unref();
+
+    console.log(`\x1b[36m🚀 Upload queued in background (${targetName})...\x1b[0m`);
+    process.exit(0);
   }
 
   if (firstArg === '--dir') {
