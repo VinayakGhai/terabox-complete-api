@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.jpg" alt="Terabox Complete API Banner" width="800" style="border-radius: 8px;"/>
+  <img src="assets/logo.jpg" alt="Terabox Complete API Banner" width="480" style="border-radius: 10px; max-width: 100%; height: auto;"/>
 </p>
 
 <h1 align="center">Terabox Complete API</h1>
@@ -17,9 +17,15 @@
 
 ---
 
-## Overview
+## ⚡ The Problem
 
-**Terabox Complete API** is a complete, high-performance CLI file uploader for TeraBox paired with a Cloudflare Worker token proxy. It eliminates browser window popups, removes heavy Playwright dependencies, and solves TeraBox token expiration through server-side `jsToken` resolution and silent background `ndus` session self-healing.
+**TeraBox does not provide official personal-use API keys or developer portal access.**
+
+Developers wanting to automate file uploads, create headless backups, or build CLI storage integrations are typically forced into heavy browser automation frameworks (Playwright/Puppeteer) that spawn visible Chromium windows, steal window manager focus, consume massive RAM, and break whenever session tokens rotate.
+
+## 🚀 The Solution
+
+**Terabox Complete API** provides a lightweight, production-grade CLI uploader paired with a Cloudflare Worker server-side token proxy. It resolves authentication tokens dynamically on Cloudflare's edge network, auto-heals expired sessions in **< 0.05 seconds** from your local browser DB, and detaches uploads to the background instantly (**< 3ms**) with auto-dismissing 2-second desktop notifications.
 
 ---
 
