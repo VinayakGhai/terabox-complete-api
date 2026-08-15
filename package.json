@@ -1,0 +1,31 @@
+{
+  "name": "terabox-complete-api",
+  "version": "1.0.0",
+  "description": "High-performance TeraBox CLI File Uploader & Cloudflare Worker Token Proxy with zero browser popups and seamless background session self-healing.",
+  "main": "upload.js",
+  "scripts": {
+    "start": "node upload.js",
+    "check": "node upload.js --check",
+    "worker:dev": "wrangler dev --port 8787",
+    "worker:deploy": "wrangler deploy"
+  },
+  "keywords": [
+    "terabox",
+    "terabox-api",
+    "cloudflare-worker",
+    "terabox-uploader",
+    "cli",
+    "file-uploader",
+    "token-proxy"
+  ],
+  "author": "nayak-indie",
+  "license": "GPL-2.0-only",
+  "dependencies": {
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "terabox-upload-tool": "^1.0.0"
+  },
+  "devDependencies": {
+    "wrangler": "^3.109.2"
+  }
+}

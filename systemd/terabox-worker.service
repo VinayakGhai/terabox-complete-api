@@ -1,0 +1,15 @@
+[Unit]
+Description=TeraBox Cloudflare Worker Local Proxy
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/nayak-indie
+ExecStart=/usr/bin/npx wrangler dev --port 8787
+Restart=always
+RestartSec=3
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=default.target

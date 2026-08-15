@@ -1,0 +1,6 @@
+name = "terabox-worker-proxy"
+main = "worker/index.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+DEFAULT_APP_ID = "250528"
