@@ -17,6 +17,7 @@ axios.defaults.headers.common['Referer'] = 'https://www.1024terabox.com/main';
 axios.defaults.headers.common['Connection'] = 'keep-alive';
 
 const HISTORY_FILE = path.join(os.homedir(), '.terabox_history.json');
+const TASKS_FILE = path.join(os.homedir(), '.terabox_active_tasks.json');
 
 function sendDesktopNotification(title, message, isSuccess = true) {
   try {
@@ -42,6 +43,94 @@ function formatDateTime(date = new Date()) {
   const min = pad(date.getMinutes());
   const ss = pad(date.getSeconds());
   return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+}
+
+function updateTaskState(taskId, data) {
+  try {
+    let tasks = {};
+    if (fs.existsSync(TASKS_FILE)) {
+      try {
+        tasks = JSON.parse(fs.readFileSync(TASKS_FILE, 'utf8'));
+      } catch (_) {}
+    }
+    tasks[taskId] = {
+      ...(tasks[taskId] || {}),
+      ...data,
+      updatedAt: Date.now()
+    };
+
+    // Clean old tasks (>30 mins)
+    const now = Date.now();
+    Object.keys(tasks).forEach(id => {
+      if (now - tasks[id].updatedAt > 30 * 60 * 1000) {
+        delete tasks[id];
+      }
+    });
+
+    fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2), 'utf8');
+  } catch (_) {}
+}
+
+function renderProgressBar(percent, width = 20) {
+  const safePercent = Math.min(100, Math.max(0, percent));
+  const filledLength = Math.round((width * safePercent) / 100);
+  const emptyLength = width - filledLength;
+  const filledStr = '█'.repeat(filledLength);
+  const emptyStr = '░'.repeat(emptyLength);
+  const color = safePercent === 100 ? '\x1b[32m' : (safePercent > 50 ? '\x1b[36m' : '\x1b[33m');
+  return `${color}${filledStr}\x1b[90m${emptyStr}\x1b[0m \x1b[1m\x1b[33m${safePercent}%\x1b[0m`;
+}
+
+function displayActiveTracks() {
+  if (!fs.existsSync(TASKS_FILE)) {
+    console.log('\x1b[33mNo active background upload processes currently tracking.\x1b[0m');
+    return;
+  }
+
+  try {
+    const raw = fs.readFileSync(TASKS_FILE, 'utf8');
+    const tasks = JSON.parse(raw);
+    const taskIds = Object.keys(tasks);
+
+    if (taskIds.length === 0) {
+      console.log('\x1b[33mNo active background upload processes currently tracking.\x1b[0m');
+      return;
+    }
+
+    console.log('\n\x1b[36m=================================== Active TeraBox Upload Processes ===================================\x1b[0m\n');
+    console.log(
+      '\x1b[1m' +
+      'PID'.padEnd(10) +
+      'File Name'.padEnd(28) +
+      'Size'.padEnd(14) +
+      'Progress Bar & Percent'.padEnd(35) +
+      'Status' +
+      '\x1b[0m'
+    );
+    console.log('-'.repeat(98));
+
+    taskIds.forEach(id => {
+      const task = tasks[id];
+      const pidStr = (String(id).slice(-8)).padEnd(10);
+      const name = (task.fileName || '').length > 25 ? task.fileName.slice(0, 22) + '...' : (task.fileName || '');
+      const sizeStr = formatFileSize(task.sizeBytes || task.total || 0).padEnd(14);
+      const percent = task.percent || 0;
+      const barStr = renderProgressBar(percent, 20).padEnd(35);
+      
+      let statusStr = '\x1b[33m⚡ UPLOADING\x1b[0m';
+      if (task.status === 'SUCCESS' || percent === 100) {
+        statusStr = '\x1b[32m✓ COMPLETED\x1b[0m';
+      } else if (task.status === 'FAILED') {
+        statusStr = '\x1b[31m✕ FAILED\x1b[0m';
+      }
+
+      console.log(`${pidStr}${name.padEnd(28)}${sizeStr}${barStr}${statusStr}`);
+    });
+
+    console.log('\n\x1b[36m=======================================================================================================\x1b[0m\n');
+  } catch (e) {
+    console.error('Failed to read active tracking state:', e.message);
+  }
 }
 
 function appendHistory(entry) {
@@ -104,7 +193,10 @@ function clearHistory() {
     if (fs.existsSync(HISTORY_FILE)) {
       fs.unlinkSync(HISTORY_FILE);
     }
-    console.log('\x1b[32m✓ TeraBox upload history log cleared.\x1b[0m');
+    if (fs.existsSync(TASKS_FILE)) {
+      fs.unlinkSync(TASKS_FILE);
+    }
+    console.log('\x1b[32m✓ TeraBox upload history log and active tracking cache cleared.\x1b[0m');
   } catch (e) {
     console.error('Failed to clear history:', e.message);
   }
@@ -233,9 +325,62 @@ async function checkCredentials() {
   if (creds) {
     console.log('\x1b[32m✓ TeraBox Cloudflare Worker Proxy & Credentials are VALID and ACTIVE!\x1b[0m');
     console.log(`\x1b[36m✓ Server-Side Resolved jsToken: ${creds.jsToken.substring(0, 12)}...\x1b[0m`);
+
+    // Verify account profile name
+    try {
+      const infoRes = await axios.get('https://www.1024terabox.com/api/home/info?app_id=250528', {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+          'Cookie': `lang=en; ndus=${creds.ndus};`,
+          'Referer': 'https://www.1024terabox.com/main'
+        }
+      });
+      if (infoRes.data && infoRes.data.data) {
+        console.log(`\x1b[32m✓ Connected Account: ${infoRes.data.data.username || 'Active User'} (UK: ${infoRes.data.data.uk || 'N/A'})\x1b[0m`);
+      }
+    } catch (_) {}
+
     return true;
   } else {
     process.exit(1);
+    return false;
+  }
+}
+
+async function deleteRemoteFiles(targetPaths) {
+  if (!Array.isArray(targetPaths) || targetPaths.length === 0) {
+    console.error('\x1b[31mError: Please specify one or more remote file/folder paths to delete.\x1b[0m');
+    return false;
+  }
+
+  const creds = await resolveServerSideCredentials();
+  if (!creds) return false;
+
+  const normalizedPaths = targetPaths.map(p => p.startsWith('/') ? p : '/' + p);
+  console.log(`\x1b[36mDeleting remote cloud file(s):\x1b[0m ${normalizedPaths.join(', ')}`);
+
+  try {
+    const uploader = new TeraboxUploader({
+      ndus: creds.ndus,
+      jsToken: creds.jsToken,
+      appId: creds.appId,
+    });
+
+    const res = await uploader.deleteFiles(normalizedPaths);
+
+    if (res && (res.errno === 0 || res.success === true)) {
+      console.log(`\x1b[32m✓ Successfully deleted from TeraBox cloud storage!\x1b[0m`);
+      sendDesktopNotification('TeraBox File Deleted', `✓ Deleted ${normalizedPaths.join(', ')}`, true);
+      return true;
+    } else {
+      const errorMsg = res ? (typeof res.message === 'object' ? JSON.stringify(res.message) : JSON.stringify(res)) : 'Unknown error';
+      console.error(`\x1b[31m✕ Remote deletion failed: ${errorMsg}\x1b[0m`);
+      sendDesktopNotification('TeraBox Delete Failed', `✕ Deletion failed: ${errorMsg}`, false);
+      return false;
+    }
+  } catch (err) {
+    console.error(`\x1b[31m✕ Deletion failed with error: ${err.message}\x1b[0m`);
+    sendDesktopNotification('TeraBox Delete Failed', `✕ Deletion error: ${err.message}`, false);
     return false;
   }
 }
@@ -305,6 +450,15 @@ async function uploadSingleFile(filePath, remoteFolder = '/') {
   const fullRemotePath = normalizedTargetPath === '/' ? `/${fileName}` : `${normalizedTargetPath}/${fileName}`;
   const fileSizeFormatted = formatFileSize(stats.size);
   const timestamp = formatDateTime();
+  const taskId = process.env.TERABOX_TASK_ID || process.pid;
+
+  updateTaskState(taskId, {
+    fileName,
+    remotePath: fullRemotePath,
+    sizeBytes: stats.size,
+    percent: 0,
+    status: 'UPLOADING'
+  });
 
   console.log(`\x1b[36mStarting upload:\x1b[0m ${fileName} (${fileSizeFormatted}) -> TeraBox:${fullRemotePath}`);
 
@@ -314,6 +468,13 @@ async function uploadSingleFile(filePath, remoteFolder = '/') {
       const percent = Math.round((loaded / total) * 100);
       if (percent !== lastPercent) {
         lastPercent = percent;
+        updateTaskState(taskId, {
+          fileName,
+          remotePath: fullRemotePath,
+          sizeBytes: stats.size,
+          percent: percent,
+          status: 'UPLOADING'
+        });
         process.stdout.write(`Upload progress: ${percent}%\r`);
       }
     }
@@ -331,6 +492,13 @@ async function uploadSingleFile(filePath, remoteFolder = '/') {
 
     if (result && result.success) {
       console.log(`\x1b[32m✓ Upload successful! Remote path: ${fullRemotePath}\x1b[0m`);
+      updateTaskState(taskId, {
+        fileName,
+        remotePath: fullRemotePath,
+        sizeBytes: stats.size,
+        percent: 100,
+        status: 'SUCCESS'
+      });
       appendHistory({
         timestamp,
         fileName,
@@ -346,6 +514,12 @@ async function uploadSingleFile(filePath, remoteFolder = '/') {
     } else {
       const errorMsg = result ? (typeof result.message === 'object' ? JSON.stringify(result.message) : (result.message || JSON.stringify(result))) : 'Unknown error';
       console.error(`\x1b[31m✕ Upload failed: ${errorMsg}\x1b[0m`);
+      updateTaskState(taskId, {
+        fileName,
+        remotePath: fullRemotePath,
+        sizeBytes: stats.size,
+        status: 'FAILED'
+      });
       appendHistory({
         timestamp,
         fileName,
@@ -362,6 +536,12 @@ async function uploadSingleFile(filePath, remoteFolder = '/') {
   } catch (err) {
     process.stdout.write('\n');
     console.error(`\x1b[31m✕ Upload failed with error: ${err.message}\x1b[0m`);
+    updateTaskState(taskId, {
+      fileName,
+      remotePath: fullRemotePath,
+      sizeBytes: stats.size,
+      status: 'FAILED'
+    });
     appendHistory({
       timestamp,
       fileName,
@@ -419,6 +599,8 @@ function displayHelpMenu() {
   \x1b[32mstt upload <file> [remote-folder]\x1b[0m      Upload file instantly (Background Detached <3ms)
   \x1b[32mstt upload --sync <file>\x1b[0m               Upload file in foreground with progress bar
   \x1b[32mstt dir <folder> [remote-folder]\x1b[0m       Upload entire directory recursively
+  \x1b[32mstt track\x1b[0m                              Track active background uploads & percent progress
+  \x1b[32mstt delete <remote-path>\x1b[0m               Delete remote file or directory on cloud
   \x1b[32mstt list [folder]\x1b[0m                      List all remote files in TeraBox storage
   \x1b[32mstt check\x1b[0m                              Check Cloudflare Worker proxy & session health
   \x1b[32mstt log\x1b[0m                                View upload history log
@@ -450,6 +632,11 @@ async function main() {
 
   const firstArg = args[0];
 
+  if (firstArg === 'track' || firstArg === '--track' || firstArg === 'status') {
+    displayActiveTracks();
+    return;
+  }
+
   if (firstArg === 'log' || firstArg === '--log' || firstArg === '--history') {
     displayHistory();
     return;
@@ -467,6 +654,11 @@ async function main() {
 
   if (firstArg === 'list' || firstArg === '--list') {
     await listRemoteFiles(args[1] || '/');
+    return;
+  }
+
+  if (firstArg === 'delete' || firstArg === 'rm' || firstArg === '--delete') {
+    await deleteRemoteFiles(args.slice(1));
     return;
   }
 
@@ -497,10 +689,19 @@ async function main() {
     const child = spawn(process.execPath, [__filename, '--async-worker', ...rawArgs], {
       detached: true,
       stdio: 'ignore',
-      env: process.env,
+      env: { ...process.env, TERABOX_TASK_ID: String(process.pid) },
       cwd: process.cwd()
     });
+    const childTaskId = String(child.pid);
     child.unref();
+
+    // Register initial task entry
+    updateTaskState(childTaskId, {
+      fileName: targetName,
+      remotePath: remoteFolder,
+      percent: 0,
+      status: 'UPLOADING'
+    });
 
     console.log(`\x1b[36m🚀 Upload queued in background (${targetName})...\x1b[0m`);
     process.exit(0);

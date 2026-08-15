@@ -129,6 +129,8 @@ alias stt="node /path/to/terabox-complete-api/upload.js"
 | `storetera upload <file>` | `stt upload <file> [folder]` | Upload a single file to TeraBox | Instant Background (<3ms) |
 | `storetera upload --sync` | `stt upload --sync <file>` | Upload file in foreground terminal | Foreground Terminal |
 | `storetera dir <folder>` | `stt dir <folder> [folder]` | Upload entire directory recursively | Instant Background |
+| `storetera track` | `stt track` | View live active upload process bars & percentage | Process Monitor |
+| `storetera delete <path>` | `stt delete <path>` | Purge remote file or directory on cloud | Remote File Manager |
 | `storetera list [folder]` | `stt list [folder]` | List all remote files in TeraBox storage | Cloud File Manager |
 | `storetera check` | `stt check` | Verify Worker proxy & session health | Health Check |
 | `storetera log` | `stt log` | View formatted upload history log | History Viewer |
