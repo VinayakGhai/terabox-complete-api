@@ -20,6 +20,26 @@ axios.defaults.headers.common['Connection'] = 'keep-alive';
 const HISTORY_FILE = path.join(os.homedir(), '.terabox_history.json');
 const TASKS_FILE = path.join(os.homedir(), '.terabox_active_tasks.json');
 
+// Royal Color Palette Tokens
+const C = {
+  reset: '\x1b[0m',
+  bold: '\x1b[1m',
+  dim: '\x1b[2m',
+  italic: '\x1b[3m',
+  underline: '\x1b[4m',
+  // Royal RGB Colors
+  gold: '\x1b[38;2;234;179;8m',        // #eab308 Royal Gold
+  amber: '\x1b[38;2;245;158;11m',      // #f59e0b Bright Gold
+  purple: '\x1b[38;2;168;85;247m',     // #a855f7 Royal Purple
+  violet: '\x1b[38;2;147;51;234m',     // #9333ea Deep Royal Violet
+  indigo: '\x1b[38;2;99;102;241m',     // #6366f1 Royal Indigo
+  cyan: '\x1b[38;2;6;182;212m',        // #06b6d4 Diamond Cyan
+  emerald: '\x1b[38;2;16;185;129m',    // #10b981 Royal Emerald
+  rose: '\x1b[38;2;244;63;94m',        // #f43f5e Royal Ruby Red
+  gray: '\x1b[38;2;107;114;128m',      // #6b7280 Muted Gray
+  lightGray: '\x1b[38;2;209;213;219m' // #d1d5db Light Gray
+};
+
 function sendDesktopNotification(title, message, isSuccess = true) {
   try {
     const icon = isSuccess ? 'checkbox-checked-symbolic' : 'dialog-error-symbolic';
@@ -60,7 +80,6 @@ function updateTaskState(taskId, data) {
       updatedAt: Date.now()
     };
 
-    // Clean old tasks (>30 mins)
     const now = Date.now();
     Object.keys(tasks).forEach(id => {
       if (now - tasks[id].updatedAt > 30 * 60 * 1000) {
@@ -72,19 +91,19 @@ function updateTaskState(taskId, data) {
   } catch (_) {}
 }
 
-function renderProgressBar(percent, width = 20) {
+function renderRoyalProgressBar(percent, width = 22) {
   const safePercent = Math.min(100, Math.max(0, percent));
   const filledLength = Math.round((width * safePercent) / 100);
   const emptyLength = width - filledLength;
   const filledStr = '█'.repeat(filledLength);
   const emptyStr = '░'.repeat(emptyLength);
-  const color = safePercent === 100 ? '\x1b[32m' : (safePercent > 50 ? '\x1b[36m' : '\x1b[33m');
-  return `${color}${filledStr}\x1b[90m${emptyStr}\x1b[0m \x1b[1m\x1b[33m${safePercent}%\x1b[0m`;
+  const color = safePercent === 100 ? C.emerald : (safePercent > 50 ? C.cyan : C.gold);
+  return `${color}${filledStr}${C.gray}${emptyStr}${C.reset} ${C.bold}${C.amber}${safePercent}%${C.reset}`;
 }
 
 function displayActiveTracks() {
   if (!fs.existsSync(TASKS_FILE)) {
-    console.log('\x1b[33mNo active background upload processes currently tracking.\x1b[0m');
+    console.log(`${C.amber}👑 No active background upload processes currently tracking.${C.reset}`);
     return;
   }
 
@@ -94,21 +113,21 @@ function displayActiveTracks() {
     const taskIds = Object.keys(tasks);
 
     if (taskIds.length === 0) {
-      console.log('\x1b[33mNo active background upload processes currently tracking.\x1b[0m');
+      console.log(`${C.amber}👑 No active background upload processes currently tracking.${C.reset}`);
       return;
     }
 
-    console.log('\n\x1b[36m=================================== Active TeraBox Upload Processes ===================================\x1b[0m\n');
+    console.log(`\n${C.purple}=================================== 👑 Active Royal Upload Tasks ===================================${C.reset}\n`);
     console.log(
-      '\x1b[1m' +
+      C.bold +
       'PID'.padEnd(10) +
       'File Name'.padEnd(28) +
       'Size'.padEnd(14) +
       'Progress Bar & Percent'.padEnd(35) +
       'Status' +
-      '\x1b[0m'
+      C.reset
     );
-    console.log('-'.repeat(98));
+    console.log(`${C.violet}${'─'.repeat(98)}${C.reset}`);
 
     taskIds.forEach(id => {
       const task = tasks[id];
@@ -116,21 +135,21 @@ function displayActiveTracks() {
       const name = (task.fileName || '').length > 25 ? task.fileName.slice(0, 22) + '...' : (task.fileName || '');
       const sizeStr = formatFileSize(task.sizeBytes || task.total || 0).padEnd(14);
       const percent = task.percent || 0;
-      const barStr = renderProgressBar(percent, 20).padEnd(35);
+      const barStr = renderRoyalProgressBar(percent, 20).padEnd(45);
       
-      let statusStr = '\x1b[33m⚡ UPLOADING\x1b[0m';
+      let statusStr = `${C.gold}⚡ UPLOADING${C.reset}`;
       if (task.status === 'SUCCESS' || percent === 100) {
-        statusStr = '\x1b[32m✓ COMPLETED\x1b[0m';
+        statusStr = `${C.emerald}✓ COMPLETED${C.reset}`;
       } else if (task.status === 'FAILED') {
-        statusStr = '\x1b[31m✕ FAILED\x1b[0m';
+        statusStr = `${C.rose}✕ FAILED${C.reset}`;
       }
 
-      console.log(`${pidStr}${name.padEnd(28)}${sizeStr}${barStr}${statusStr}`);
+      console.log(`${C.cyan}${pidStr}${C.reset}${C.lightGray}${name.padEnd(28)}${sizeStr}${C.reset}${barStr}${statusStr}`);
     });
 
-    console.log('\n\x1b[36m=======================================================================================================\x1b[0m\n');
+    console.log(`\n${C.purple}====================================================================================================${C.reset}\n`);
   } catch (e) {
-    console.error('Failed to read active tracking state:', e.message);
+    console.error(`${C.rose}Failed to read active tracking state: ${e.message}${C.reset}`);
   }
 }
 
@@ -151,41 +170,41 @@ function appendHistory(entry) {
 
 function displayHistory() {
   if (!fs.existsSync(HISTORY_FILE)) {
-    console.log('\x1b[33mNo upload history found yet. Upload a file using "storetera upload <file>" or "stt <file>"!\x1b[0m');
+    console.log(`${C.amber}👑 No upload history found yet. Upload a file using "stt upload <file>" or "stt <file>"!${C.reset}`);
     return;
   }
   try {
     const data = fs.readFileSync(HISTORY_FILE, 'utf8');
     const history = JSON.parse(data);
     if (!Array.isArray(history) || history.length === 0) {
-      console.log('\x1b[33mUpload history is empty.\x1b[0m');
+      console.log(`${C.amber}👑 Upload history is empty.${C.reset}`);
       return;
     }
 
-    console.log('\n\x1b[36m=================================== TeraBox Upload History ===================================\x1b[0m\n');
+    console.log(`\n${C.purple}=================================== 👑 TeraBox Upload History ===================================${C.reset}\n`);
     console.log(
-      '\x1b[1m' +
+      C.bold +
       'Date & Time'.padEnd(22) +
       'File Name'.padEnd(28) +
       'Size'.padEnd(14) +
       'Remote Path'.padEnd(25) +
       'Status' +
-      '\x1b[0m'
+      C.reset
     );
-    console.log('-'.repeat(98));
+    console.log(`${C.violet}${'─'.repeat(98)}${C.reset}`);
 
     history.forEach(item => {
       const time = (item.timestamp || '').padEnd(22);
       const name = (item.fileName || '').length > 25 ? item.fileName.slice(0, 22) + '...' : (item.fileName || '');
       const size = (item.sizeFormatted || '').padEnd(14);
       const remote = (item.remotePath || '').length > 23 ? item.remotePath.slice(0, 20) + '...' : (item.remotePath || '');
-      const status = item.status === 'SUCCESS' ? '\x1b[32m✓ SUCCESS\x1b[0m' : '\x1b[31m✕ FAILED\x1b[0m';
-      console.log(`${time}${name.padEnd(28)}${size}${remote.padEnd(25)}${status}`);
+      const status = item.status === 'SUCCESS' ? `${C.emerald}✓ SUCCESS${C.reset}` : `${C.rose}✕ FAILED${C.reset}`;
+      console.log(`${C.dim}${time}${C.reset}${C.lightGray}${name.padEnd(28)}${size}${remote.padEnd(25)}${C.reset}${status}`);
     });
 
-    console.log('\n\x1b[36m==============================================================================================\x1b[0m\n');
+    console.log(`\n${C.purple}================================================================================================${C.reset}\n`);
   } catch (e) {
-    console.error('Failed to read history:', e.message);
+    console.error(`${C.rose}Failed to read history: ${e.message}${C.reset}`);
   }
 }
 
@@ -197,9 +216,9 @@ function clearHistory() {
     if (fs.existsSync(TASKS_FILE)) {
       fs.unlinkSync(TASKS_FILE);
     }
-    console.log('\x1b[32m✓ TeraBox upload history log and active tracking cache cleared successfully!\x1b[0m');
+    console.log(`${C.emerald}✓ TeraBox upload history log and active tracking cache cleared successfully!${C.reset}`);
   } catch (e) {
-    console.error('Failed to clear history:', e.message);
+    console.error(`${C.rose}Failed to clear history: ${e.message}${C.reset}`);
   }
 }
 
@@ -240,7 +259,7 @@ function autoSelfHealNdusFromBrowser() {
   const pyScript = path.join(__dirname, 'extract_browser_creds.py');
   if (!fs.existsSync(pyScript)) return false;
 
-  console.log('\x1b[33m⚡ Attempting background ndus session recovery from Brave browser...\x1b[0m');
+  console.log(`${C.amber}⚡ Attempting background ndus session recovery from Brave browser...${C.reset}`);
   try {
     const res = spawnSync('python3', [pyScript], { encoding: 'utf8', timeout: 5000 });
     if (res.stdout) {
@@ -248,7 +267,7 @@ function autoSelfHealNdusFromBrowser() {
       if (freshNdus && freshNdus.length >= 15) {
         updateEnvFile(currentEnvPath, { TERABOX_NDUS: freshNdus });
         process.env.TERABOX_NDUS = freshNdus;
-        console.log(`\x1b[32m✓ Successfully background-refreshed TERABOX_NDUS cookie from Brave browser!\x1b[0m`);
+        console.log(`${C.emerald}✓ Successfully background-refreshed TERABOX_NDUS cookie from Brave browser!${C.reset}`);
         return true;
       }
     }
@@ -278,11 +297,10 @@ async function resolveServerSideCredentials(isRetry = false) {
     if (!isRetry && autoSelfHealNdusFromBrowser()) {
       return resolveServerSideCredentials(true);
     }
-    console.log('\x1b[31m✕ Missing or invalid TERABOX_NDUS in .env file.\x1b[0m');
+    console.log(`${C.rose}✕ Missing or invalid TERABOX_NDUS in .env file.${C.reset}`);
     return null;
   }
 
-  // Direct server-side resolution via TeraBox 1024terabox.com endpoint
   try {
     const mainRes = await httpGetWithRetry('https://www.1024terabox.com/main', {
       headers: {
@@ -308,26 +326,25 @@ async function resolveServerSideCredentials(isRetry = false) {
       if (!isRetry && autoSelfHealNdusFromBrowser()) {
         return resolveServerSideCredentials(true);
       }
-      console.log(`\x1b[31m✕ TeraBox session expired or invalid ndus cookie.\x1b[0m`);
+      console.log(`${C.rose}✕ TeraBox session expired or invalid ndus cookie.${C.reset}`);
       return null;
     }
   } catch (e) {
     if (!isRetry && autoSelfHealNdusFromBrowser()) {
       return resolveServerSideCredentials(true);
     }
-    console.log(`\x1b[31m✕ TeraBox token resolution error: ${e.message}\x1b[0m`);
+    console.log(`${C.rose}✕ TeraBox token resolution error: ${e.message}${C.reset}`);
     return null;
   }
 }
 
 async function checkCredentials() {
-  console.log('\x1b[36m--- TeraBox Credentials Health Check (Worker Token Proxy) ---\x1b[0m');
+  console.log(`\n${C.purple}==================== 👑 TeraBox Credentials Health Check ====================${C.reset}\n`);
   const creds = await resolveServerSideCredentials();
   if (creds) {
-    console.log('\x1b[32m✓ TeraBox Cloudflare Worker Proxy & Credentials are VALID and ACTIVE!\x1b[0m');
-    console.log(`\x1b[36m✓ Server-Side Resolved jsToken: ${creds.jsToken.substring(0, 12)}...\x1b[0m`);
+    console.log(`${C.emerald}✓ TeraBox Cloudflare Worker Proxy & Credentials are VALID and ACTIVE!${C.reset}`);
+    console.log(`${C.cyan}✓ Server-Side Resolved jsToken: ${creds.jsToken.substring(0, 16)}...${C.reset}`);
 
-    // Verify account profile name
     try {
       const infoRes = await axios.get('https://www.1024terabox.com/api/home/info?app_id=250528', {
         headers: {
@@ -337,10 +354,11 @@ async function checkCredentials() {
         }
       });
       if (infoRes.data && infoRes.data.data) {
-        console.log(`\x1b[32m✓ Connected Account: ${infoRes.data.data.username || 'Active User'} (UK: ${infoRes.data.data.uk || 'N/A'})\x1b[0m`);
+        console.log(`${C.gold}👑 Connected Account: ${infoRes.data.data.username || 'Active User'} (UK: ${infoRes.data.data.uk || 'N/A'})${C.reset}`);
       }
     } catch (_) {}
 
+    console.log(`\n${C.purple}============================================================================${C.reset}\n`);
     return true;
   } else {
     process.exit(1);
@@ -350,7 +368,7 @@ async function checkCredentials() {
 
 async function deleteRemoteFiles(targetPaths) {
   if (!Array.isArray(targetPaths) || targetPaths.length === 0) {
-    console.error('\x1b[31mError: Please specify one or more remote file/folder paths to delete.\x1b[0m');
+    console.error(`${C.rose}Error: Please specify one or more remote file/folder paths to delete.${C.reset}`);
     return false;
   }
 
@@ -358,7 +376,7 @@ async function deleteRemoteFiles(targetPaths) {
   if (!creds) return false;
 
   const normalizedPaths = targetPaths.map(p => p.startsWith('/') ? p : '/' + p);
-  console.log(`\x1b[36mDeleting remote cloud file(s):\x1b[0m ${normalizedPaths.join(', ')}`);
+  console.log(`${C.cyan}Deleting remote cloud file(s):${C.reset} ${normalizedPaths.join(', ')}`);
 
   try {
     const uploader = new TeraboxUploader({
@@ -370,17 +388,17 @@ async function deleteRemoteFiles(targetPaths) {
     const res = await uploader.deleteFiles(normalizedPaths);
 
     if (res && (res.errno === 0 || res.success === true)) {
-      console.log(`\x1b[32m✓ Successfully deleted from TeraBox cloud storage!\x1b[0m`);
+      console.log(`${C.emerald}✓ Successfully deleted from TeraBox cloud storage!${C.reset}`);
       sendDesktopNotification('TeraBox File Deleted', `✓ Deleted ${normalizedPaths.join(', ')}`, true);
       return true;
     } else {
       const errorMsg = res ? (typeof res.message === 'object' ? JSON.stringify(res.message) : JSON.stringify(res)) : 'Unknown error';
-      console.error(`\x1b[31m✕ Remote deletion failed: ${errorMsg}\x1b[0m`);
+      console.error(`${C.rose}✕ Remote deletion failed: ${errorMsg}${C.reset}`);
       sendDesktopNotification('TeraBox Delete Failed', `✕ Deletion failed: ${errorMsg}`, false);
       return false;
     }
   } catch (err) {
-    console.error(`\x1b[31m✕ Deletion failed with error: ${err.message}\x1b[0m`);
+    console.error(`${C.rose}✕ Deletion failed with error: ${err.message}${C.reset}`);
     sendDesktopNotification('TeraBox Delete Failed', `✕ Deletion error: ${err.message}`, false);
     return false;
   }
@@ -399,43 +417,43 @@ async function listRemoteFiles(remoteFolder = '/') {
 
     const res = await uploader.fetchFileList(remoteFolder);
     if (res && res.success && res.data && res.data.list) {
-      console.log(`\n\x1b[36m====================== TeraBox Remote Cloud Files (${remoteFolder}) ======================\x1b[0m\n`);
+      console.log(`\n${C.purple}====================== 👑 TeraBox Remote Cloud Files (${remoteFolder}) ======================${C.reset}\n`);
       console.log(
-        '\x1b[1m' +
+        C.bold +
         'File Name'.padEnd(35) +
         'Size'.padEnd(14) +
         'Type'.padEnd(12) +
         'Remote Path' +
-        '\x1b[0m'
+        C.reset
       );
-      console.log('-'.repeat(85));
+      console.log(`${C.violet}${'─'.repeat(85)}${C.reset}`);
       res.data.list.forEach(item => {
         const name = (item.server_filename || '').length > 32 ? item.server_filename.slice(0, 29) + '...' : (item.server_filename || '');
         const size = formatFileSize(item.size || 0).padEnd(14);
-        const type = item.isdir === 1 ? '\x1b[33mFolder\x1b[0m'.padEnd(21) : '\x1b[32mFile\x1b[0m'.padEnd(21);
+        const type = item.isdir === 1 ? `${C.gold}Folder${C.reset}`.padEnd(21) : `${C.emerald}File${C.reset}`.padEnd(21);
         const pathStr = item.path || '';
-        console.log(`${name.padEnd(35)}${size}${type}${pathStr}`);
+        console.log(`${C.lightGray}${name.padEnd(35)}${size}${C.reset}${type}${C.cyan}${pathStr}${C.reset}`);
       });
-      console.log('\n\x1b[36m========================================================================================\x1b[0m\n');
+      console.log(`\n${C.purple}========================================================================================${C.reset}\n`);
     } else {
-      console.log('\x1b[33mNo files found or empty directory.\x1b[0m');
+      console.log(`${C.amber}👑 No files found or empty directory.${C.reset}`);
     }
   } catch (e) {
-    console.error(`\x1b[31m✕ Failed to fetch file list: ${e.message}\x1b[0m`);
+    console.error(`${C.rose}✕ Failed to fetch file list: ${e.message}${C.reset}`);
   }
 }
 
 async function uploadSingleFile(filePath, remoteFolder = '/') {
   const resolvedPath = path.resolve(filePath);
   if (!fs.existsSync(resolvedPath)) {
-    console.error(`\x1b[31mError: File not found at path "${resolvedPath}".\x1b[0m`);
+    console.error(`${C.rose}Error: File not found at path "${resolvedPath}".${C.reset}`);
     sendDesktopNotification('TeraBox Upload Error', `File not found: ${filePath}`, false);
     return false;
   }
 
   const stats = fs.statSync(resolvedPath);
   if (stats.isDirectory()) {
-    console.error(`\x1b[31mError: Path "${resolvedPath}" is a directory. Use "storetera dir <folder>" or "stt dir <folder>" to upload directories.\x1b[0m`);
+    console.error(`${C.rose}Error: Path "${resolvedPath}" is a directory. Use "stt dir <folder>" to upload directories.${C.reset}`);
     return false;
   }
 
@@ -461,7 +479,7 @@ async function uploadSingleFile(filePath, remoteFolder = '/') {
     status: 'UPLOADING'
   });
 
-  console.log(`\x1b[36mStarting upload:\x1b[0m ${fileName} (${fileSizeFormatted}) -> TeraBox:${fullRemotePath}`);
+  console.log(`${C.cyan}🚀 Starting upload:${C.reset} ${C.bold}${fileName}${C.reset} (${C.gold}${fileSizeFormatted}${C.reset}) -> TeraBox:${C.purple}${fullRemotePath}${C.reset}`);
 
   let lastPercent = -1;
   const progressCallback = (loaded, total) => {
@@ -492,7 +510,7 @@ async function uploadSingleFile(filePath, remoteFolder = '/') {
     process.stdout.write('\n');
 
     if (result && result.success) {
-      console.log(`\x1b[32m✓ Upload successful! Remote path: ${fullRemotePath}\x1b[0m`);
+      console.log(`${C.emerald}✓ Upload successful! Remote path: ${fullRemotePath}${C.reset}`);
       updateTaskState(taskId, {
         fileName,
         remotePath: fullRemotePath,
@@ -514,7 +532,7 @@ async function uploadSingleFile(filePath, remoteFolder = '/') {
       return true;
     } else {
       const errorMsg = result ? (typeof result.message === 'object' ? JSON.stringify(result.message) : (result.message || JSON.stringify(result))) : 'Unknown error';
-      console.error(`\x1b[31m✕ Upload failed: ${errorMsg}\x1b[0m`);
+      console.error(`${C.rose}✕ Upload failed: ${errorMsg}${C.reset}`);
       updateTaskState(taskId, {
         fileName,
         remotePath: fullRemotePath,
@@ -536,7 +554,7 @@ async function uploadSingleFile(filePath, remoteFolder = '/') {
     }
   } catch (err) {
     process.stdout.write('\n');
-    console.error(`\x1b[31m✕ Upload failed with error: ${err.message}\x1b[0m`);
+    console.error(`${C.rose}✕ Upload failed with error: ${err.message}${C.reset}`);
     updateTaskState(taskId, {
       fileName,
       remotePath: fullRemotePath,
@@ -561,7 +579,7 @@ async function uploadSingleFile(filePath, remoteFolder = '/') {
 async function uploadDirectory(dirPath, remoteFolder = '/') {
   const resolvedDir = path.resolve(dirPath);
   if (!fs.existsSync(resolvedDir) || !fs.statSync(resolvedDir).isDirectory()) {
-    console.error(`\x1b[31mError: Directory not found at "${resolvedDir}".\x1b[0m`);
+    console.error(`${C.rose}Error: Directory not found at "${resolvedDir}".${C.reset}`);
     return;
   }
 
@@ -571,11 +589,11 @@ async function uploadDirectory(dirPath, remoteFolder = '/') {
   });
 
   if (files.length === 0) {
-    console.log(`\x1b[33mNo files found in directory "${resolvedDir}".\x1b[0m`);
+    console.log(`${C.amber}No files found in directory "${resolvedDir}".${C.reset}`);
     return;
   }
 
-  console.log(`\x1b[36mFound ${files.length} file(s) in "${resolvedDir}" to upload...\x1b[0m\n`);
+  console.log(`${C.cyan}Found ${files.length} file(s) in "${resolvedDir}" to upload...${C.reset}\n`);
   let successCount = 0;
   for (const file of files) {
     const fullPath = path.join(resolvedDir, file);
@@ -584,49 +602,59 @@ async function uploadDirectory(dirPath, remoteFolder = '/') {
     console.log('');
   }
 
-  console.log(`\x1b[32m✓ Directory upload completed: ${successCount}/${files.length} files uploaded.\x1b[0m`);
+  console.log(`${C.emerald}✓ Directory upload completed: ${successCount}/${files.length} files uploaded.${C.reset}`);
   sendDesktopNotification('TeraBox Batch Upload Complete', `✓ Uploaded ${successCount}/${files.length} files to TeraBox:${remoteFolder}`, true);
 }
 
 function displayHelpMenu() {
   console.log(`
-\x1b[36m=================================================================================\x1b[0m
-\x1b[1m\x1b[34m          Terabox Complete API & CLI Uploader — VinayakGhai (Indie Dev)          \x1b[0m
-\x1b[36m=================================================================================\x1b[0m
+${C.purple}=================================================================================${C.reset}
+${C.bold}${C.gold}       👑 TeraBox Complete API & CLI Uploader — VinayakGhai (Indie Dev)          ${C.reset}
+${C.purple}=================================================================================${C.reset}
 
-\x1b[33m💡 Tip: Use "storetera" or "stt" short alias anytime from your terminal!\x1b[0m
+${C.amber}💡 Tip: Use "stt", "store", "storetera", or "teraapi-full" anytime in terminal!${C.reset}
 
-\x1b[1mREVAMPED CLI COMMAND SYNTAX:\x1b[0m
-  \x1b[32mstt upload <file> [remote-folder]\x1b[0m      Upload file (Instant Background Detached <3ms)
-  \x1b[32mstt upload --sync <file>\x1b[0m               Upload file in foreground with progress bar
-  \x1b[32mstt dir <folder> [remote-folder]\x1b[0m       Upload entire directory recursively
-  \x1b[32mstt track\x1b[0m                              Track active background uploads & percent progress
-  \x1b[32mstt delete <remote-path>\x1b[0m               Delete remote file or directory on TeraBox cloud
-  \x1b[32mstt list [folder]\x1b[0m                      List all remote files in TeraBox storage
-  \x1b[32mstt check\x1b[0m                              Check Worker proxy & account session health
-  \x1b[32mstt log\x1b[0m                                View upload history log
-  \x1b[32mstt clear\x1b[0m                              Clear upload history log & tracking cache
-  \x1b[32mstt help\x1b[0m                               Display this interactive help menu
+${C.bold}${C.violet}COMMAND SYNTAX & UTILITIES:${C.reset}
+  ${C.emerald}stt upload <file> [remote-folder]${C.reset}      Upload file (Instant Background Detached <3ms)
+  ${C.emerald}stt upload --sync <file>${C.reset}               Upload file in foreground with progress bar
+  ${C.emerald}stt dir <folder> [remote-folder]${C.reset}       Upload entire directory recursively
+  ${C.emerald}stt track${C.reset}                              Track active background uploads & percent progress
+  ${C.emerald}stt delete <remote-path>${C.reset}               Delete remote file or directory on TeraBox cloud
+  ${C.emerald}stt list [folder]${C.reset}                      List all remote files in TeraBox storage
+  ${C.emerald}stt check${C.reset}                              Check Worker proxy & account session health
+  ${C.emerald}stt log${C.reset}                                View upload history log
+  ${C.emerald}stt log clear / stt clear${C.reset}              Clear upload history log & tracking cache
+  ${C.emerald}stt help${C.reset}                               Display this royal help menu
 
-\x1b[1mEXAMPLE USAGE COMMANDS:\x1b[0m
-  \x1b[36mstt my_file.zip\x1b[0m                        Instant background upload to root '/'
-  \x1b[36mstt upload my_file.zip /backups\x1b[0m         Upload to remote folder '/backups'
-  \x1b[36mstt dir my_photos /photos\x1b[0m               Batch upload directory to '/photos'
-  \x1b[36mstt track\x1b[0m                              View live color progress bars
-  \x1b[36mstt delete /backups/old_file.zip\x1b[0m        Purge remote file from cloud
-  \x1b[36mstt log clear\x1b[0m                           Clear all upload history logs
+${C.bold}${C.violet}EXAMPLE COMMANDS:${C.reset}
+  ${C.cyan}stt my_file.zip${C.reset}                        Instant background upload to root '/'
+  ${C.cyan}stt upload my_file.zip /backups${C.reset}         Upload to remote folder '/backups'
+  ${C.cyan}stt dir my_photos /photos${C.reset}               Batch upload directory to '/photos'
+  ${C.cyan}stt track${C.reset}                              View live colorful progress bars
+  ${C.cyan}stt delete /backups/old_file.zip${C.reset}        Purge remote file from cloud
+  ${C.cyan}stt log clear${C.reset}                           Clear all upload history logs
 
-\x1b[1mDOCUMENTATION & MANUAL:\x1b[0m
-  \x1b[35mLEARN IT PDF Guide:\x1b[0m Open LEARN_IT.pdf for full setup, EULA, and architecture docs.
+${C.bold}${C.violet}DOCUMENTATION & MANUAL:${C.reset}
+  ${C.gold}LEARN IT PDF Guide:${C.reset} Open LEARN_IT.pdf for full setup, EULA, and architecture docs.
 
-\x1b[36m=================================================================================\x1b[0m
+${C.purple}=================================================================================${C.reset}
   `);
 }
 
 async function main() {
+  // 1. Robust Argument Cleaning (Strip node binaries, wrapper aliases & injected dotenvx flags)
   let rawArgs = process.argv.slice(2);
 
-  if (rawArgs.length > 0 && (rawArgs[0] === 'stt' || rawArgs[0] === 'storetera' || rawArgs[0] === 'teraapi-full')) {
+  rawArgs = rawArgs.filter(arg => {
+    if (!arg) return false;
+    if (arg === 'run') return false;
+    // Filter out injected dotenv flags like '-f', '-e', '--override', '--quiet', or files ending in .env
+    if (arg === '-f' || arg === '-e' || arg === '--override' || arg === '--quiet' || arg.endsWith('.env')) return false;
+    return true;
+  });
+
+  // Strip lead subcommand aliases if present
+  if (rawArgs.length > 0 && ['stt', 'storetera', 'teraapi-full', 'store'].includes(rawArgs[0])) {
     rawArgs = rawArgs.slice(1);
   }
 
@@ -638,6 +666,11 @@ async function main() {
   const isAsyncWorker = rawArgs.includes('--async-worker');
   const isSync = rawArgs.includes('--sync');
   const args = rawArgs.filter(a => a !== '--async-worker' && a !== '--sync');
+
+  if (args.length === 0) {
+    displayHelpMenu();
+    return;
+  }
 
   const firstArg = args[0];
   const secondArg = args[1];
@@ -690,7 +723,7 @@ async function main() {
   if (firstArg === 'delete' || firstArg === 'rm' || firstArg === '--delete') {
     const targets = args.slice(1);
     if (targets.length === 0) {
-      console.log('\x1b[31m✕ Please specify a remote file or folder path to delete. Example: "stt delete /file.txt"\x1b[0m');
+      console.log(`${C.rose}✕ Please specify a remote file or folder path to delete. Example: "stt delete /file.txt"${C.reset}`);
       displayHelpMenu();
       return;
     }
@@ -715,7 +748,7 @@ async function main() {
   }
 
   if (!uploadPath) {
-    console.log(`\x1b[31m✕ Unrecognized command or missing parameters: "${rawArgs.join(' ')}"\x1b[0m`);
+    console.log(`${C.rose}✕ Unrecognized command or missing parameters: "${rawArgs.join(' ')}"${C.reset}`);
     displayHelpMenu();
     return;
   }
@@ -740,7 +773,7 @@ async function main() {
       status: 'UPLOADING'
     });
 
-    console.log(`\x1b[36m🚀 Upload queued in background (${targetName})...\x1b[0m`);
+    console.log(`${C.cyan}🚀 Upload queued in background (${targetName})...${C.reset}`);
     process.exit(0);
   }
 
