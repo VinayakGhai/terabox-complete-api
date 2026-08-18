@@ -641,22 +641,30 @@ ${C.purple}=====================================================================
   `);
 }
 
-async function main() {
-  // 1. Robust Argument Cleaning (Strip node binaries, wrapper aliases & injected dotenvx flags)
-  let rawArgs = process.argv.slice(2);
-
-  rawArgs = rawArgs.filter(arg => {
-    if (!arg) return false;
-    if (arg === 'run') return false;
-    // Filter out injected dotenv flags like '-f', '-e', '--override', '--quiet', or files ending in .env
-    if (arg === '-f' || arg === '-e' || arg === '--override' || arg === '--quiet' || arg.endsWith('.env')) return false;
+function cleanRawArgs(raw) {
+  let args = raw.filter(a => {
+    if (!a) return false;
+    if (a === 'run' || a === '--' || a.includes('dotenvx') || a.endsWith('.env')) return false;
     return true;
   });
 
-  // Strip lead subcommand aliases if present
-  if (rawArgs.length > 0 && ['stt', 'storetera', 'teraapi-full', 'store'].includes(rawArgs[0])) {
-    rawArgs = rawArgs.slice(1);
+  while (args.length > 0) {
+    if (['stt', 'storetera', 'teraapi-full', 'store'].includes(args[0])) {
+      args = args.slice(1);
+      continue;
+    }
+    if (args[0].startsWith('-') && !['--sync', '--async-worker', '--help', '-h', '--check', '--list', '--dir', '--log', '--clear', '--track', '--delete', '--history', '--status', '--rm'].includes(args[0])) {
+      args = args.slice(1);
+      continue;
+    }
+    break;
   }
+  return args;
+}
+
+async function main() {
+  // 1. Robust Loop-Based Argument Cleaning
+  let rawArgs = cleanRawArgs(process.argv.slice(2));
 
   if (rawArgs.length === 0) {
     displayHelpMenu();
